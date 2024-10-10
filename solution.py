@@ -46,9 +46,14 @@ class Model(object):
         # TODO: Use your GP to estimate the posterior mean and stddev for each city_area here
         x_test_feat = np.concatenate((test_coordinates, test_area_flags[:, np.newaxis]), axis=1)
         gp_mean , gp_std = self.model.predict(x_test_feat,return_std=True) 
+        
+        predictions = gp_mean
+        for i in range(0,len(gp_std)): # if its residential add the standard deviation
+            if test_area_flags[i] == 1:
+                predictions[i] += gp_std[i]
 
         # TODO: Use the GP posterior to form your predictions here
-        predictions = gp_mean
+        
 
         return predictions, gp_mean, gp_std
 
@@ -61,12 +66,14 @@ class Model(object):
         """
 
         x_feat = np.concatenate((train_coordinates, train_area_flags[:, np.newaxis]), axis=1)
-        x_feat = x_feat[0:100, :]
-        train_targets = train_targets[0:100]
-    
-        kernel = RBF()
+        x_feat = x_feat[1000:2000, :] + x_feat[3000:4000, :] + x_feat[5000:6000, :] + x_feat[7000:8000, :]
+        train_targets = train_targets[1000:2000] + train_targets[3000:4000] + train_targets[5000:6000]+ train_targets[7000:8000]
+        train_targets = train_targets
+        
+        kernel = RBF(length_scale=1e+05) + Matern(length_scale=4.51e-05, nu=1.5) + WhiteKernel(noise_level=1.71e+04)
 
         self.model = GaussianProcessRegressor(kernel).fit(y=train_targets, X=x_feat)
+        print(self.model.kernel_)
 
 
 # You don't have to change this function
