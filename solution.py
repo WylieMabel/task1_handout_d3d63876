@@ -1,4 +1,5 @@
 import os
+os.environ['MPLCONFIGDIR'] = os.path.expanduser('~/.matplotlib_cache')
 import typing
 from sklearn.gaussian_process.kernels import *
 import numpy as np
@@ -82,12 +83,12 @@ class Model(object):
                 x_feat_0.append(x_feat[i])
                 train_targets_0.append(train_targets[i])
         
-        x_feat_temp = x_feat_1
-        train_targets_temp = train_targets_1
-        # for i in range(0,6000):
-        #     a = random.randint(0,len(x_feat_1)-1)
-        #     x_feat_temp.append(x_feat_1[a])
-        #     train_targets_temp.append(train_targets_1[a])
+        x_feat_temp = []
+        train_targets_temp = []
+        for i in range(0,4000):
+            a = random.randint(0,len(x_feat_1)-1)
+            x_feat_temp.append(x_feat_1[a])
+            train_targets_temp.append(train_targets_1[a])
         for i in range(0,500):
             a = random.randint(0,len(x_feat_0)-1)
             x_feat_temp.append(x_feat_0[a])
@@ -95,8 +96,8 @@ class Model(object):
             
         x_feat = x_feat_temp
         train_targets = train_targets_temp
-        kernel = RBF(length_scale=1e+05) + Matern(length_scale=4.51e-05, nu=1.5) + WhiteKernel(noise_level=346)
-
+        # kernel = ConstantKernel() + RationalQuadratic(alpha=1e+05, length_scale=0.184) + ExpSineSquared(length_scale=0.538, periodicity=1.1) + DotProduct(sigma_0=29.3) + RBF(length_scale=1e+05, length_scale_bounds=(1e4, 1e6)) + Matern(length_scale=4.51e-05, nu=1.5) + WhiteKernel(noise_level=225)
+        kernel =  ConstantKernel() + RationalQuadratic(alpha=1e+05, length_scale=0.184) + DotProduct(sigma_0=29.3) + RBF(length_scale=1e+05, length_scale_bounds=(1e4, 1e6)) + Matern(length_scale=4.51e-05, nu=1.5) + WhiteKernel(noise_level=225)
         self.model = GaussianProcessRegressor(kernel).fit(y=train_targets, X=x_feat)
         print(self.model.kernel_)
 
