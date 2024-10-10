@@ -85,11 +85,11 @@ class Model(object):
         
         x_feat_temp = []
         train_targets_temp = []
-        for i in range(0,4000):
+        for i in range(0,5000):
             a = random.randint(0,len(x_feat_1)-1)
             x_feat_temp.append(x_feat_1[a])
             train_targets_temp.append(train_targets_1[a])
-        for i in range(0,500):
+        for i in range(0,1000):
             a = random.randint(0,len(x_feat_0)-1)
             x_feat_temp.append(x_feat_0[a])
             train_targets_temp.append(train_targets_0[a])
@@ -97,7 +97,7 @@ class Model(object):
         x_feat = x_feat_temp
         train_targets = train_targets_temp
         # kernel = ConstantKernel() + RationalQuadratic(alpha=1e+05, length_scale=0.184) + ExpSineSquared(length_scale=0.538, periodicity=1.1) + DotProduct(sigma_0=29.3) + RBF(length_scale=1e+05, length_scale_bounds=(1e4, 1e6)) + Matern(length_scale=4.51e-05, nu=1.5) + WhiteKernel(noise_level=225)
-        kernel =  ConstantKernel() + RationalQuadratic(alpha=1e+05, length_scale=0.184) + DotProduct(sigma_0=29.3) + RBF(length_scale=1e+05, length_scale_bounds=(1e4, 1e6)) + Matern(length_scale=4.51e-05, nu=1.5) + WhiteKernel(noise_level=225)
+        kernel =  ConstantKernel() + RationalQuadratic(alpha=1e+05, length_scale=0.0852) + DotProduct(sigma_0=23.3) + RBF(length_scale=1e+05, length_scale_bounds=(1e4, 1e6)) + WhiteKernel(noise_level=196)
         self.model = GaussianProcessRegressor(kernel).fit(y=train_targets, X=x_feat)
         print(self.model.kernel_)
 
