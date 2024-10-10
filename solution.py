@@ -5,6 +5,10 @@ import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import random
+
+# Set a seed
+random.seed(42)
 
 
 # Set `EXTENDED_EVALUATION` to `True` in order to visualize your predictions.
@@ -66,9 +70,17 @@ class Model(object):
         """
 
         x_feat = np.concatenate((train_coordinates, train_area_flags[:, np.newaxis]), axis=1)
-        x_feat = x_feat[1000:2000, :] + x_feat[3000:4000, :] + x_feat[5000:6000, :] + x_feat[7000:8000, :]
-        train_targets = train_targets[1000:2000] + train_targets[3000:4000] + train_targets[5000:6000]+ train_targets[7000:8000]
-        train_targets = train_targets
+        x_feat_2 = []
+        train2 = []
+        for i in range(0,4000):
+            a = random.randint(0,len(x_feat))
+            x_feat_2.append(x_feat[a])
+            train2.append(train_targets[a])
+            
+        x_feat = x_feat_2
+        train_targets = train2
+        # x_feat = x_feat[1000:2000, :] + x_feat[3000:4000, :] + x_feat[5000:6000, :] + x_feat[7000:8000, :]
+        # train_targets = train_targets[1000:2000] + train_targets[3000:4000] + train_targets[5000:6000]+ train_targets[7000:8000]
         
         kernel = RBF(length_scale=1e+05) + Matern(length_scale=4.51e-05, nu=1.5) + WhiteKernel(noise_level=1.71e+04)
 
