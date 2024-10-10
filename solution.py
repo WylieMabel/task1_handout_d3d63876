@@ -29,6 +29,7 @@ class Model(object):
         We already provide a random number generator for reproducibility.
         """
         self.rng = np.random.default_rng(seed=0)
+        self.model = np.random.default_rng(seed=0)
 
         # TODO: Add custom initialization for your model here if necessary
 
@@ -60,11 +61,9 @@ class Model(object):
         """
         x_feat = np.concatenate([train_coordinates,train_area_flags], axis=1)
 
-        model = GaussianProcessRegressor(RBF).fit(y=train_targets, X=x_feat)
+        self.model = GaussianProcessRegressor(RBF).fit(y=train_targets, X=x_feat)
 
-        print(model.score)
-        
-        return model
+        print(self.model.score)
 
 # You don't have to change this function
 def calculate_cost(ground_truth: np.ndarray, predictions: np.ndarray, area_flags: np.ndarray) -> float:
