@@ -61,7 +61,9 @@ class Model(object):
         """
 
         x_feat = np.concatenate((train_coordinates, train_area_flags[:, np.newaxis]), axis=1)
-
+        x_feat = x_feat[0:100, :]
+        train_targets = train_targets[0:100]
+    
         kernel = RBF()
 
         self.model = GaussianProcessRegressor(kernel).fit(y=train_targets, X=x_feat)
