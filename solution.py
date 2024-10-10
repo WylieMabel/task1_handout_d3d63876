@@ -44,8 +44,8 @@ class Model(object):
         """
 
         # TODO: Use your GP to estimate the posterior mean and stddev for each city_area here
-        gp_mean = np.zeros(test_coordinates.shape[0], dtype=float)
-        gp_std = np.zeros(test_coordinates.shape[0], dtype=float)
+        x_test_feat = np.concatenate((test_coordinates, test_area_flags[:, np.newaxis]), axis=1)
+        gp_mean , gp_std = self.model.predict(x_test_feat,return_std=True) 
 
         # TODO: Use the GP posterior to form your predictions here
         predictions = gp_mean
@@ -59,11 +59,13 @@ class Model(object):
         :param train_targets: Training pollution concentrations as a 1d NumPy float array of shape (NUM_SAMPLES,)
         :param train_area_flags: Binary variable denoting whether the 2D training point is in the residential area (1) or not (0)
         """
-        x_feat = np.concatenate([train_coordinates,train_area_flags], axis=1)
 
-        self.model = GaussianProcessRegressor(RBF).fit(y=train_targets, X=x_feat)
+        x_feat = np.concatenate((train_coordinates, train_area_flags[:, np.newaxis]), axis=1)
 
-        print(self.model.score)
+        kernel = RBF()
+
+        self.model = GaussianProcessRegressor(kernel).fit(y=train_targets, X=x_feat)
+
 
 # You don't have to change this function
 def calculate_cost(ground_truth: np.ndarray, predictions: np.ndarray, area_flags: np.ndarray) -> float:
@@ -196,6 +198,10 @@ def main():
     train_y = np.loadtxt('train_y.csv', delimiter=',', skiprows=1)
     test_x = np.loadtxt('test_x.csv', delimiter=',', skiprows=1)
 
+    train_x = train_x[0:100, :]
+    train_y = train_x[0:100, :]
+    test_x = train_x[0:100, :]
+    
     # Extract the city_area information
     train_coordinates, train_area_flags, test_coordinates, test_area_flags = extract_area_information(train_x, test_x)
     
