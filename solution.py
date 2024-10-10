@@ -70,16 +70,32 @@ class Model(object):
         """
 
         x_feat = np.concatenate((train_coordinates, train_area_flags[:, np.newaxis]), axis=1)
-        x_feat_2 = []
-        train2 = []
-        for i in range(0,6000):
-            a = random.randint(0,len(x_feat)-1)
-            x_feat_2.append(x_feat[a])
-            train2.append(train_targets[a])
+        x_feat_1 = []
+        train_targets_1 = []
+        x_feat_0 = []
+        train_targets_0 = []
+        for i in range(0,len(x_feat)-1):
+            if train_area_flags[i] == 1:
+                x_feat_1.append(x_feat[i])
+                train_targets_1.append(train_targets[i])
+            else:
+                x_feat_0.append(x_feat[i])
+                train_targets_0.append(train_targets[i])
+        
+        x_feat_temp = x_feat_1
+        train_targets_temp = train_targets_1
+        # for i in range(0,6000):
+        #     a = random.randint(0,len(x_feat_1)-1)
+        #     x_feat_temp.append(x_feat_1[a])
+        #     train_targets_temp.append(train_targets_1[a])
+        for i in range(0,500):
+            a = random.randint(0,len(x_feat_0)-1)
+            x_feat_temp.append(x_feat_0[a])
+            train_targets_temp.append(train_targets_0[a])
             
-        x_feat = x_feat_2
-        train_targets = train2
-        kernel = RBF(length_scale=1e+05) + Matern(length_scale=4.51e-05, nu=1.5) + WhiteKernel(noise_level=352)
+        x_feat = x_feat_temp
+        train_targets = train_targets_temp
+        kernel = RBF(length_scale=1e+05) + Matern(length_scale=4.51e-05, nu=1.5) + WhiteKernel(noise_level=346)
 
         self.model = GaussianProcessRegressor(kernel).fit(y=train_targets, X=x_feat)
         print(self.model.kernel_)
