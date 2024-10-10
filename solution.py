@@ -178,10 +178,14 @@ def extract_area_information(train_x: np.ndarray, test_x: np.ndarray) -> typing.
     :return: Tuple of (training features' 2D coordinates, training features' city_area information,
         test features' 2D coordinates, test features' city_area information)
     """
-    train_coordinates = np.zeros((train_x.shape[0], 2), dtype=float)
-    train_area_flags = np.zeros((train_x.shape[0],), dtype=bool)
-    test_coordinates = np.zeros((test_x.shape[0], 2), dtype=float)
-    test_area_flags = np.zeros((test_x.shape[0],), dtype=bool)
+    # Extract the 2D coordinates and area flags from training data
+    train_coordinates = train_x[:,0:2]
+    train_area_flags = train_x[:,2].astype(bool)
+
+    # Extract the 2D coordinates and area flags from test data
+    test_coordinates = test_x[:,0:2]
+    test_area_flags = test_x[:,2].astype(bool)
+
 
     #TODO: Extract the city_area information from the training and test features
 
@@ -201,7 +205,7 @@ def main():
     train_x = train_x[0:100, :]
     train_y = train_x[0:100, :]
     test_x = train_x[0:100, :]
-    
+
     # Extract the city_area information
     train_coordinates, train_area_flags, test_coordinates, test_area_flags = extract_area_information(train_x, test_x)
     
