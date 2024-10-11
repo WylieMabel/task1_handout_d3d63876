@@ -1,11 +1,16 @@
 import os
+
+os.environ['MPLCONFIGDIR'] = os.path.expanduser('~/.matplotlib_cache')
 import typing
 from sklearn.gaussian_process.kernels import *
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import random
 
+# Set a seed
+random.seed(42)
 
 # Set `EXTENDED_EVALUATION` to `True` in order to visualize your predictions.
 EXTENDED_EVALUATION = False
@@ -33,7 +38,8 @@ class Model(object):
 
         # TODO: Add custom initialization for your model here if necessary
 
-    def generate_predictions(self, test_coordinates: np.ndarray, test_area_flags: np.ndarray) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def generate_predictions(self, test_coordinates: np.ndarray, test_area_flags: np.ndarray) -> typing.Tuple[
+        np.ndarray, np.ndarray, np.ndarray]:
         """
         Predict the pollution concentration for a given set of city_areas.
         :param test_coordinates: city_areas as a 2d NumPy float array of shape (NUM_SAMPLES, 2)
@@ -45,10 +51,14 @@ class Model(object):
 
         # TODO: Use your GP to estimate the posterior mean and stddev for each city_area here
         x_test_feat = np.concatenate((test_coordinates, test_area_flags[:, np.newaxis]), axis=1)
-        gp_mean , gp_std = self.model.predict(x_test_feat,return_std=True) 
+        gp_mean, gp_std = self.model.predict(x_test_feat, return_std=True)
+
+        predictions = gp_mean
+        for i in range(0, len(gp_std)):  # if its residential add the standard deviation
+            if test_area_flags[i] == 1:
+                predictions[i] += gp_std[i]
 
         # TODO: Use the GP posterior to form your predictions here
-        predictions = gp_mean
 
         return predictions, gp_mean, gp_std
 
@@ -61,12 +71,36 @@ class Model(object):
         """
 
         x_feat = np.concatenate((train_coordinates, train_area_flags[:, np.newaxis]), axis=1)
-        x_feat = x_feat[0:100, :]
-        train_targets = train_targets[0:100]
-    
-        kernel = RBF()
+        x_feat_1 = []
+        train_targets_1 = []
+        x_feat_0 = []
+        train_targets_0 = []
+        for i in range(0, len(x_feat) - 1):
+            if train_area_flags[i] == 1:
+                x_feat_1.append(x_feat[i])
+                train_targets_1.append(train_targets[i])
+            else:
+                x_feat_0.append(x_feat[i])
+                train_targets_0.append(train_targets[i])
 
+        x_feat_temp = []
+        train_targets_temp = []
+        for i in range(0, 5000):
+            a = random.randint(0, len(x_feat_1) - 1)
+            x_feat_temp.append(x_feat_1[a])
+            train_targets_temp.append(train_targets_1[a])
+        for i in range(0, 1000):
+            a = random.randint(0, len(x_feat_0) - 1)
+            x_feat_temp.append(x_feat_0[a])
+            train_targets_temp.append(train_targets_0[a])
+
+        x_feat = x_feat_temp
+        train_targets = train_targets_temp
+        # kernel = ConstantKernel() + RationalQuadratic(alpha=1e+05, length_scale=0.184) + ExpSineSquared(length_scale=0.538, periodicity=1.1) + DotProduct(sigma_0=29.3) + RBF(length_scale=1e+05, length_scale_bounds=(1e4, 1e6)) + Matern(length_scale=4.51e-05, nu=1.5) + WhiteKernel(noise_level=225)
+        kernel = ConstantKernel() + RationalQuadratic(alpha=1e+05, length_scale=0.0852) + DotProduct(
+            sigma_0=23.3) + RBF(length_scale=1e+05, length_scale_bounds=(1e4, 1e6)) + WhiteKernel(noise_level=196)
         self.model = GaussianProcessRegressor(kernel).fit(y=train_targets, X=x_feat)
+        print(self.model.kernel_)
 
 
 # You don't have to change this function
@@ -101,9 +135,11 @@ def check_within_circle(coordinate, circle_parameters):
     :param circle_parameters: 3D coordinate of the circle center and its radius
     :return: True if the coordinate is inside the circle, False otherwise
     """
-    return (coordinate[0] - circle_parameters[0])**2 + (coordinate[1] - circle_parameters[1])**2 < circle_parameters[2]**2
+    return (coordinate[0] - circle_parameters[0]) ** 2 + (coordinate[1] - circle_parameters[1]) ** 2 < \
+        circle_parameters[2] ** 2
 
-# You don't have to change this function 
+
+# You don't have to change this function
 def identify_city_area_flags(grid_coordinates):
     """
     Determines the city_area index for each coordinate in the visualization grid.
@@ -112,27 +148,28 @@ def identify_city_area_flags(grid_coordinates):
     """
     # Circles coordinates
     circles = np.array([[0.5488135, 0.71518937, 0.17167342],
-                    [0.79915856, 0.46147936, 0.1567626 ],
-                    [0.26455561, 0.77423369, 0.10298338],
-                    [0.6976312,  0.06022547, 0.04015634],
-                    [0.31542835, 0.36371077, 0.17985623],
-                    [0.15896958, 0.11037514, 0.07244247],
-                    [0.82099323, 0.09710128, 0.08136552],
-                    [0.41426299, 0.0641475,  0.04442035],
-                    [0.09394051, 0.5759465,  0.08729856],
-                    [0.84640867, 0.69947928, 0.04568374],
-                    [0.23789282, 0.934214,   0.04039037],
-                    [0.82076712, 0.90884372, 0.07434012],
-                    [0.09961493, 0.94530153, 0.04755969],
-                    [0.88172021, 0.2724369,  0.04483477],
-                    [0.9425836,  0.6339977,  0.04979664]])
-    
+                        [0.79915856, 0.46147936, 0.1567626],
+                        [0.26455561, 0.77423369, 0.10298338],
+                        [0.6976312, 0.06022547, 0.04015634],
+                        [0.31542835, 0.36371077, 0.17985623],
+                        [0.15896958, 0.11037514, 0.07244247],
+                        [0.82099323, 0.09710128, 0.08136552],
+                        [0.41426299, 0.0641475, 0.04442035],
+                        [0.09394051, 0.5759465, 0.08729856],
+                        [0.84640867, 0.69947928, 0.04568374],
+                        [0.23789282, 0.934214, 0.04039037],
+                        [0.82076712, 0.90884372, 0.07434012],
+                        [0.09961493, 0.94530153, 0.04755969],
+                        [0.88172021, 0.2724369, 0.04483477],
+                        [0.9425836, 0.6339977, 0.04979664]])
+
     area_flags = np.zeros((grid_coordinates.shape[0],))
 
-    for i,coordinate in enumerate(grid_coordinates):
+    for i, coordinate in enumerate(grid_coordinates):
         area_flags[i] = any([check_within_circle(coordinate, circ) for circ in circles])
 
     return area_flags
+
 
 # You don't have to change this function
 def execute_extended_evaluation(model: Model, output_dir: str = '/results'):
@@ -150,7 +187,7 @@ def execute_extended_evaluation(model: Model, output_dir: str = '/results'):
     )
     visualization_grid = np.stack((grid_lon.flatten(), grid_lat.flatten()), axis=1)
     grid_area_flags = identify_city_area_flags(visualization_grid)
-    
+
     # Obtain predictions, means, and stddevs over the entire map
     predictions, gp_mean, gp_stddev = model.generate_predictions(visualization_grid, grid_area_flags)
     predictions = np.reshape(predictions, (EVALUATION_GRID_POINTS, EVALUATION_GRID_POINTS))
@@ -172,7 +209,8 @@ def execute_extended_evaluation(model: Model, output_dir: str = '/results'):
     plt.show()
 
 
-def extract_area_information(train_x: np.ndarray, test_x: np.ndarray) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def extract_area_information(train_x: np.ndarray, test_x: np.ndarray) -> typing.Tuple[
+    np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Extracts the city_area information from the training and test features.
     :param train_x: Training features
@@ -181,21 +219,22 @@ def extract_area_information(train_x: np.ndarray, test_x: np.ndarray) -> typing.
         test features' 2D coordinates, test features' city_area information)
     """
     # Extract the 2D coordinates and area flags from training data
-    train_coordinates = train_x[:,0:2]
-    train_area_flags = train_x[:,2].astype(bool)
+    train_coordinates = train_x[:, 0:2]
+    train_area_flags = train_x[:, 2].astype(bool)
 
     # Extract the 2D coordinates and area flags from test data
-    test_coordinates = test_x[:,0:2]
-    test_area_flags = test_x[:,2].astype(bool)
+    test_coordinates = test_x[:, 0:2]
+    test_area_flags = test_x[:, 2].astype(bool)
 
+    # TODO: Extract the city_area information from the training and test features
 
-    #TODO: Extract the city_area information from the training and test features
-
-    assert train_coordinates.shape[0] == train_area_flags.shape[0] and test_coordinates.shape[0] == test_area_flags.shape[0]
+    assert train_coordinates.shape[0] == train_area_flags.shape[0] and test_coordinates.shape[0] == \
+           test_area_flags.shape[0]
     assert train_coordinates.shape[1] == 2 and test_coordinates.shape[1] == 2
     assert train_area_flags.ndim == 1 and test_area_flags.ndim == 1
 
     return train_coordinates, train_area_flags, test_coordinates, test_area_flags
+
 
 # you don't have to change this function
 def main():
@@ -210,7 +249,7 @@ def main():
 
     # Extract the city_area information
     train_coordinates, train_area_flags, test_coordinates, test_area_flags = extract_area_information(train_x, test_x)
-    
+
     # Fit the model
     print('Training model')
     model = Model()
