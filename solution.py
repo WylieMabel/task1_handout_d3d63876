@@ -5,6 +5,7 @@ import typing
 from sklearn.gaussian_process.kernels import *
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.kernel_approximation import Nystroem
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import random
@@ -13,12 +14,14 @@ import random
 random.seed(42)
 
 # Set `EXTENDED_EVALUATION` to `True` in order to visualize your predictions.
-EXTENDED_EVALUATION = False
+EXTENDED_EVALUATION = True
 EVALUATION_GRID_POINTS = 300  # Number of grid points used in extended evaluation
 
 # Cost function constants
 COST_W_UNDERPREDICT = 50.0
 COST_W_NORMAL = 1.0
+
+SQUARES = 10
 
 
 class Model(object):
@@ -35,8 +38,28 @@ class Model(object):
         """
         self.rng = np.random.default_rng(seed=0)
         self.model = np.random.default_rng(seed=0)
+        self.model_grid = self.model_grid(squares=SQUARES)
 
         # TODO: Add custom initialization for your model here if necessary
+    
+    def model_grid(self, squares:int, seed=0):
+        ""
+        model_grid = np.empty((squares, squares), dtype=object)
+        for i in range(squares):
+            for j in range(squares):
+                # just for initialisation
+                model_grid[i][j] = np.random.default_rng(seed)
+        return model_grid
+
+    def getCoords(self, squares):
+        # need to doc better but just creates ranges for grid coords
+        # e.g if squares = 4 [(0,0.25),(0.25,0.5),(0.5,0.75),(0.75,1)]
+        coords = []
+        for i in range(squares):
+            start = i/squares
+            end = (i+1)/squares
+            coords.append([start, end])
+        return coords
 
     def generate_predictions(self, test_coordinates: np.ndarray, test_area_flags: np.ndarray) -> typing.Tuple[
         np.ndarray, np.ndarray, np.ndarray]:
@@ -50,8 +73,27 @@ class Model(object):
         """
 
         # TODO: Use your GP to estimate the posterior mean and stddev for each city_area here
-        x_test_feat = np.concatenate((test_coordinates, test_area_flags[:, np.newaxis]), axis=1)
-        gp_mean, gp_std = self.model.predict(x_test_feat, return_std=True)
+
+        x_test_feat = np.hstack((test_coordinates, test_area_flags[:, np.newaxis]))
+        print(x_test_feat.shape)
+        gp_mean = np.empty((0,))
+        gp_std = np.empty((0,))
+
+        coords = self.getCoords(SQUARES)
+
+        for i in range(SQUARES): # concerns lat (up and down)
+            for j in range(SQUARES): # concerns long (left and right)
+                # x_feat has long, lat, residential
+                mask = (x_test_feat[:, 0] >= coords[j][0]) & (x_test_feat[:, 0] < coords[j][1]) & (
+                        x_test_feat[:, 1] >= coords[i][0]) & (x_test_feat[:, 1] < coords[i][1])
+                x_test_square = x_test_feat[mask,:]
+                gp_mean_square, gp_std_square = self.model_grid[i][j].predict(x_test_square, return_std=True)
+
+                 # Concatenate the new predictions to the existing arrays
+                gp_mean = np.concatenate([gp_mean, gp_mean_square])
+                gp_std = np.concatenate([gp_std, gp_std_square])
+
+        # TODO: Use the GP posterior to form your predictions here
 
         predictions = gp_mean
         for i in range(0, len(gp_std)):  # if its residential add the standard deviation
@@ -59,9 +101,8 @@ class Model(object):
             if test_area_flags[i]:
                 predictions[i] += gp_std[i]
 
-        # TODO: Use the GP posterior to form your predictions here
 
-        return predictions, gp_mean, gp_std
+        return (predictions, gp_mean, gp_std)
 
     def train_model(self, train_targets: np.ndarray, train_coordinates: np.ndarray, train_area_flags: np.ndarray):
         """
@@ -72,39 +113,53 @@ class Model(object):
         """
 
         x_feat = np.concatenate((train_coordinates, train_area_flags[:, np.newaxis]), axis=1)
-        x_feat_1 = []
-        train_targets_1 = []
-        x_feat_0 = []
-        train_targets_0 = []
-        for i in range(0, len(x_feat) - 1):
+        train_targets = train_targets[:, np.newaxis]
+        x_feat_1 = np.empty(shape=(0,3))
+        train_targets_1 = np.empty(shape=(0,1))
+        x_feat_0 = np.empty(shape=(0,3))
+        train_targets_0 = np.empty(shape=(0,1))
+
+
+        for i in range(0, x_feat.shape[0] - 1):
             # Since flags are stored as booleans, just changed this check to 'Check if True'
             if train_area_flags[i]:
-                x_feat_1.append(x_feat[i])
-                train_targets_1.append(train_targets[i])
+                x_feat_1 = np.vstack([x_feat_1,x_feat[i]])
+                train_targets_1 = np.vstack([train_targets_1,train_targets[i]])
             else:
-                x_feat_0.append(x_feat[i])
-                train_targets_0.append(train_targets[i])
+                x_feat_0 = np.vstack([x_feat_0,x_feat[i]])
+                train_targets_0 = np.vstack([train_targets_0,train_targets[i]])
 
-        x_feat_temp = []
-        train_targets_temp = []
+
+        x_feat_temp = np.empty(shape=(0,3))
+        train_targets_temp = np.empty(shape=(0,1))
         for i in range(0, 5000):
-            a = random.randint(0, len(x_feat_1) - 1)
-            x_feat_temp.append(x_feat_1[a])
-            train_targets_temp.append(train_targets_1[a])
+            a = random.randint(0, x_feat_1.shape[0] - 1)
+            x_feat_temp = np.vstack([x_feat_temp,x_feat_1[a]])
+            train_targets_temp = np.vstack([train_targets_temp,train_targets_1[i]])
         for i in range(0, 1000):
-            a = random.randint(0, len(x_feat_0) - 1)
-            x_feat_temp.append(x_feat_0[a])
-            train_targets_temp.append(train_targets_0[a])
+            a = random.randint(0, x_feat_0.shape[0] - 1)
+            x_feat_temp = np.vstack([x_feat_temp,x_feat_0[a]])
+            train_targets_temp = np.vstack([train_targets_temp,train_targets_0[i]])
 
-        x_feat = x_feat_temp
-        train_targets = train_targets_temp
+        #x_feat = x_feat_temp
+        #train_targets = train_targets_temp
 
         # New kernel formula
-        kernel = ConstantKernel() * RationalQuadratic(alpha=1e+04, length_scale=0.0761) + DotProduct(
-            sigma_0=23.3) + RBF(length_scale=1e+04) + WhiteKernel(noise_level=177)
+        #kernel = ConstantKernel() * RationalQuadratic(alpha=1e+04, length_scale=0.0761) + DotProduct(
+        #    sigma_0=23.3) + RBF(length_scale=1e+04) + WhiteKernel(noise_level=177)
+        
+        coords = self.getCoords(SQUARES)
 
-        self.model = GaussianProcessRegressor(kernel).fit(y=train_targets, X=x_feat)
-        print(self.model.kernel_)
+        for i in range(SQUARES): # concerns lat (up and down)
+            for j in range(SQUARES): # concerns long (left and right)
+                # x_feat has long, lat, residential
+                mask = (x_feat[:, 0] >= coords[j][0]) & (x_feat[:, 0] < coords[j][1]) & (
+                        x_feat[:, 1] >= coords[i][0]) & (x_feat[:, 1] < coords[i][1])
+                x_feat_square = x_feat[mask,:]
+                y_square = train_targets[mask,:]
+                kernel = ConstantKernel() * RationalQuadratic(alpha=1e+04, length_scale=0.0761) + DotProduct(
+                    sigma_0=23.3) + RBF(length_scale=1e+04)
+                self.model_grid[i][j] = GaussianProcessRegressor(kernel).fit(y=y_square, X=x_feat_square)
 
 
 # You don't have to change this function
@@ -207,6 +262,7 @@ def execute_extended_evaluation(model: Model, output_dir: str = '/results'):
 
     # Save figure to pdf
     figure_path = os.path.join(output_dir, 'extended_evaluation.pdf')
+    print(figure_path)
     fig.savefig(figure_path)
     print(f'Saved extended evaluation to {figure_path}')
 
@@ -230,8 +286,6 @@ def extract_area_information(train_x: np.ndarray, test_x: np.ndarray) -> typing.
     test_coordinates = test_x[:, 0:2]
     test_area_flags = test_x[:, 2].astype(bool)
 
-    # TODO: Extract the city_area information from the training and test features
-
     assert train_coordinates.shape[0] == train_area_flags.shape[0] and test_coordinates.shape[0] == \
            test_area_flags.shape[0]
     assert train_coordinates.shape[1] == 2 and test_coordinates.shape[1] == 2
@@ -247,9 +301,6 @@ def main():
     train_y = np.loadtxt('train_y.csv', delimiter=',', skiprows=1)
     test_x = np.loadtxt('test_x.csv', delimiter=',', skiprows=1)
 
-    train_x = train_x[0:100, :]
-    train_y = train_x[0:100, :]
-    test_x = train_x[0:100, :]
 
     # Extract the city_area information
     train_coordinates, train_area_flags, test_coordinates, test_area_flags = extract_area_information(train_x, test_x)
