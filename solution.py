@@ -21,7 +21,7 @@ EVALUATION_GRID_POINTS = 300  # Number of grid points used in extended evaluatio
 COST_W_UNDERPREDICT = 50.0
 COST_W_NORMAL = 1.0
 
-SQUARES = 10
+SQUARES = 8
 
 
 class Model(object):
@@ -117,16 +117,16 @@ class Model(object):
                 train_targets_0 = np.vstack([train_targets_0,train_targets[i]])
 
 
-        x_feat_temp = np.empty(shape=(0,3))
-        train_targets_temp = np.empty(shape=(0,1))
-        for i in range(0, 5000):
-            a = random.randint(0, x_feat_1.shape[0] - 1)
-            x_feat_temp = np.vstack([x_feat_temp,x_feat_1[a]])
-            train_targets_temp = np.vstack([train_targets_temp,train_targets_1[i]])
-        for i in range(0, 1000):
-            a = random.randint(0, x_feat_0.shape[0] - 1)
-            x_feat_temp = np.vstack([x_feat_temp,x_feat_0[a]])
-            train_targets_temp = np.vstack([train_targets_temp,train_targets_0[i]])
+        # x_feat_temp = np.empty(shape=(0,3))
+        # train_targets_temp = np.empty(shape=(0,1))
+        # for i in range(0, 5000):
+        #     a = random.randint(0, x_feat_1.shape[0] - 1)
+        #     x_feat_temp = np.vstack([x_feat_temp,x_feat_1[a]])
+        #     train_targets_temp = np.vstack([train_targets_temp,train_targets_1[i]])
+        # for i in range(0, 1000):
+        #     a = random.randint(0, x_feat_0.shape[0] - 1)
+        #     x_feat_temp = np.vstack([x_feat_temp,x_feat_0[a]])
+        #     train_targets_temp = np.vstack([train_targets_temp,train_targets_0[i]])
 
         #x_feat = x_feat_temp
         #train_targets = train_targets_temp
@@ -144,8 +144,8 @@ class Model(object):
                         x_feat[:, 1] >= coords[i][0]) & (x_feat[:, 1] < coords[i][1])
                 x_feat_square = x_feat[mask,:]
                 y_square = train_targets[mask,:]
-                kernel = ConstantKernel() * RationalQuadratic(alpha=1e+05, length_scale=1e-05) + DotProduct(
-                    sigma_0=23.3) + RBF(length_scale=1e-05)
+                kernel = ConstantKernel() * RationalQuadratic(alpha=1, length_scale=1) + DotProduct(
+                    sigma_0=23.3) + RBF(length_scale=1e-05)+ WhiteKernel(noise_level=177)
                 self.model_grid[i][j] = GaussianProcessRegressor(kernel).fit(y=y_square, X=x_feat_square)
 
 
