@@ -63,46 +63,33 @@ class Model(object):
 
     def generate_predictions(self, test_coordinates: np.ndarray, test_area_flags: np.ndarray) -> typing.Tuple[
         np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Predict the pollution concentration for a given set of city_areas.
-        :param test_coordinates: city_areas as a 2d NumPy float array of shape (NUM_SAMPLES, 2)
-        :param test_area_flags: city_area info for every sample in a form of a bool array (NUM_SAMPLES,)
-        :return:
-            Tuple of three 1d NumPy float arrays, each of shape (NUM_SAMPLES,),
-            containing your predictions, the GP posterior mean, and the GP posterior stddev (in that order)
-        """
+        # Ensure test_area_flags is a boolean array
+        test_area_flags = test_area_flags.astype(bool)  # Convert to boolean if not already
 
-        # TODO: Use your GP to estimate the posterior mean and stddev for each city_area here
-
+        # Prepare the feature array including the test_area_flags
         x_test_feat = np.hstack((test_coordinates, test_area_flags[:, np.newaxis]))
-        print(x_test_feat.shape)
-        gp_mean = np.empty((0,))
-        gp_std = np.empty((0,))
+        num_samples = x_test_feat.shape[0]
+        gp_mean = np.zeros(num_samples)
+        gp_std = np.zeros(num_samples)
 
         coords = self.getCoords(SQUARES)
 
-        for i in range(SQUARES): # concerns lat (up and down)
-            for j in range(SQUARES): # concerns long (left and right)
-                # x_feat has long, lat, residential
-                mask = (x_test_feat[:, 0] >= coords[j][0]) & (x_test_feat[:, 0] < coords[j][1]) & (
-                        x_test_feat[:, 1] >= coords[i][0]) & (x_test_feat[:, 1] < coords[i][1])
-                x_test_square = x_test_feat[mask,:]
-                gp_mean_square, gp_std_square = self.model_grid[i][j].predict(x_test_square, return_std=True)
+        for i in range(SQUARES):
+            for j in range(SQUARES):
+                mask = (x_test_feat[:, 0] >= coords[j][0]) & (x_test_feat[:, 0] < coords[j][1]) & \
+                       (x_test_feat[:, 1] >= coords[i][0]) & (x_test_feat[:, 1] < coords[i][1])
+                x_test_square = x_test_feat[mask]
 
-                 # Concatenate the new predictions to the existing arrays
-                gp_mean = np.concatenate([gp_mean, gp_mean_square])
-                gp_std = np.concatenate([gp_std, gp_std_square])
+                if x_test_square.size > 0:
+                    gp_mean_square, gp_std_square = self.model_grid[i][j].predict(x_test_square, return_std=True)
+                    gp_mean[mask] = gp_mean_square
+                    gp_std[mask] = gp_std_square
 
-        # TODO: Use the GP posterior to form your predictions here
+        predictions = gp_mean.copy()
+        # Update predictions where test_area_flags is True
+        predictions[test_area_flags] += gp_std[test_area_flags]
 
-        predictions = gp_mean
-        for i in range(0, len(gp_std)):  # if its residential add the standard deviation
-            # Since flags are stored as booleans, just changed this check to 'Check if True'
-            if test_area_flags[i]:
-                predictions[i] += gp_std[i]
-
-
-        return (predictions, gp_mean, gp_std)
+        return predictions, gp_mean, gp_std
 
     def train_model(self, train_targets: np.ndarray, train_coordinates: np.ndarray, train_area_flags: np.ndarray):
         """
@@ -157,8 +144,8 @@ class Model(object):
                         x_feat[:, 1] >= coords[i][0]) & (x_feat[:, 1] < coords[i][1])
                 x_feat_square = x_feat[mask,:]
                 y_square = train_targets[mask,:]
-                kernel = ConstantKernel() * RationalQuadratic(alpha=1e+04, length_scale=0.0761) + DotProduct(
-                    sigma_0=23.3) + RBF(length_scale=1e+04)
+                kernel = ConstantKernel() * RationalQuadratic(alpha=1e+05, length_scale=1e-05) + DotProduct(
+                    sigma_0=23.3) + RBF(length_scale=1e-05)
                 self.model_grid[i][j] = GaussianProcessRegressor(kernel).fit(y=y_square, X=x_feat_square)
 
 
